@@ -1646,9 +1646,37 @@ html.Q_mobile #content {
     overflow-y: auto;
 }
 
-/* Handle hidden title case */
+/*
+ * Handle hidden title case.
+ *
+ * The title element itself has to stay rendered: columns.css keeps the close X
+ * inside it and deliberately shows it there for hidden titles
+ * (`.Q_columns_hideTitle .Q_close { opacity: 1 }`), hiding only the inner
+ * `.Q_columns_title_container`. Taking the whole title out with `display: none`
+ * takes the close X with it, leaving the column with no way to close.
+ *
+ * So rather than removing the title, lift it out of the column's flex flow and
+ * shrink it to a 50x50 corner overlay. The height fix above is preserved -- the
+ * title no longer occupies vertical space or pushes content down -- without
+ * losing the X. `pointer-events: none` lets clicks through to the column
+ * content underneath; the X itself opts back in.
+ */
 .Communities .Q_columns_column.Q_columns_hideTitle .Q_columns_title {
-    display: none;
+    display: block;
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 50px;
+    height: 50px;
+    min-height: 0;
+    z-index: 200;
+    pointer-events: none;
+    background: none;
+    border: none;
+    box-shadow: none;
+}
+.Communities .Q_columns_column.Q_columns_hideTitle .Q_columns_title .Q_close {
+    pointer-events: auto;
 }
 /* /replacement of Communities.adjustHeight metthod */
 
