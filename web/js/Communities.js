@@ -970,7 +970,13 @@ Q.page('', function (unload, url, o) {
 			});
 		}
 	};
-});
+// The key matters: Q.page() defaults a missing key to 'Q', and Q.Event.set
+// REPLACES the handler under an existing key — so any other keyless
+// Q.page('') registration anywhere would silently clobber this entire
+// handler (including the delegated fastclick that opens event cards),
+// and vice versa. Every other plugin keys its registration; this was the
+// only keyless one in the tree (ro#246).
+}, 'Communities');
 
 Q.Tool.onActivate("Calendars/event").set(function () {
 	var tool = this;
