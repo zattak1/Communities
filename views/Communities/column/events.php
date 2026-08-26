@@ -12,10 +12,15 @@
         <?php echo $events['NoneYet'] ?>
     </div>
     <div class="Communities_events Communities_column_flex">
-        <?php foreach ($relations as $relation) {
-            if (is_null($hideIfNoParticipants)) {
-				$hideIfNoParticipants = !Users::isCommunityId($relation->fromPublisherId);
-            }
+        <?php
+        // The config key wins where it is set; the publisher-type heuristic is a
+        // per-event fallback, so it must not be written back into the shared
+        // variable — that would apply the first event's answer to the whole page.
+        $configuredHideIfNoParticipants = $hideIfNoParticipants;
+        foreach ($relations as $relation) {
+            $hideIfNoParticipants = is_null($configuredHideIfNoParticipants)
+                ? !Users::isCommunityId($relation->fromPublisherId)
+                : $configuredHideIfNoParticipants;
             echo Q::tool(array(
                 "Streams/preview" => array(
                     'publisherId' => $relation->fromPublisherId,
