@@ -13,8 +13,17 @@ function Communities_events_response_load()
 	$allRelations = Communities::events(@compact("experienceId", "fromTime", "toTime", "communityId", "offset", "limit"));
 	$relations = Streams_RelatedTo::filter($allRelations, array('readLevel' => 'fields'));
 
+	// Same policy as the first page: the config key wins where it is set, and the
+	// publisher-type heuristic is only the fallback for when it is unset. Without
+	// this, "load more" hides person-published events with no participants that
+	// the first page (Communities/events/response/column.php) showed.
+	$configured = Q_Config::get('Calendars', 'event', 'hideIfNoParticipants', null);
+
 	$res = array();
 	foreach ($relations as $relation) {
+		$hideIfNoParticipants = is_null($configured)
+			? !Users::isCommunityId($relation->fromPublisherId)
+			: $configured;
 		$res[] = Q::tool(array(
 			"Streams/preview" => array(
 				'publisherId' => $relation->fromPublisherId,
@@ -22,7 +31,7 @@ function Communities_events_response_load()
 				'closeable' => false
 			),
 			"Calendars/event/preview" => array(
-				'hideIfNoParticipants' => !Users::isCommunityId($relation->fromPublisherId)
+				'hideIfNoParticipants' => $hideIfNoParticipants
 			)
 		), Q_Utils::normalize($relation->fromPublisherId . ' ' . $relation->fromStreamName));
 	}
