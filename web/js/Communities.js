@@ -888,7 +888,19 @@ Q.page('', function (unload, url, o) {
 	if (Users.loggedInUser) {
 		Streams.Stream.retain(Users.loggedInUser.id, 'Streams/user/icon', 'Communities');
 	}
-	$('.Communities_login').on(Q.Pointer.fastclick, function (e) {
+	// Pass true before the handler so Q unbinds it when the page unloads
+	// (Q.js: $.fn.on pushes it onto Q.Event.jQueryForPage, which Q.loadUrl
+	// flushes before activating the next page). Without that marker these
+	// binds accumulate: this Q.page('') handler runs on every page load,
+	// but .Communities_login / .Communities_logout live in the dashboard,
+	// which survives navigations that do not re-render the 'nav' slot --
+	// tapping between the Q/tabs tabs is exactly such a navigation. The
+	// same element then collects one handler per page visited, and a single
+	// tap calls Users.login() once per handler, stacking that many login
+	// dialogs and masks. Measured before this fix, tapping five tabs:
+	// touchend 1,2,3,4,5,6, then one tap on the login tab -> 6 login calls.
+	// Same marker as the delegated $('body') bind further down.
+	$('.Communities_login').on(Q.Pointer.fastclick, true, function (e) {
 		if (Q.info.isCordova && window.Groups && Groups.Cordova) {
 			Groups.Cordova.showFullscreen();
 		}
@@ -896,7 +908,7 @@ Q.page('', function (unload, url, o) {
 		e.preventDefault();
 		return false;
 	});
-	$('.Communities_logout').on(Q.Pointer.fastclick, function (e) {
+	$('.Communities_logout').on(Q.Pointer.fastclick, true, function (e) {
 		Users.logout();
 		e.preventDefault();
 	});
