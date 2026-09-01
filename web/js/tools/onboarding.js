@@ -43,6 +43,15 @@ Q.Tool.define("Communities/onboarding", function Communities_onboarding_tool() {
             throw new Q.Error("Communities/onboarding: user is not logged in");
         }
 
+        // Fall back to server config if options were not applied yet
+        // (e.g. tool activated before Q.onInit define.options ran).
+        if (Q.isEmpty(state.steps)) {
+            var serverOptions = Q.getObject(['onboarding', 'serverOptions'], Communities);
+            if (serverOptions) {
+                Q.extend(state, Q.Tool.options.levels, serverOptions);
+            }
+        }
+
         if (Q.typeOf(state.steps) === 'string') {
             state.steps = state.steps.split(',');
         }

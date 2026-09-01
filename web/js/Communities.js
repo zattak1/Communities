@@ -1254,9 +1254,6 @@ Users.Device.beforeSubscribeConfirm.set(function (options, granted, subscribed) 
 // and run device subscription to allow receive notifications
 Q.Streams.onMessage('', 'Streams/subscribed')
 .set(function (message) {
-
-	Q.Tool.define.options('Communities/onboarding', Q.Communities.onboarding.serverOptions);
-
 	// filter by recipient
 	if (Q.getObject(["byUserId"], message) !== Users.loggedInUserId()) {
 		return;
@@ -1347,6 +1344,12 @@ if (Q.info.isMobile) {
 Q.Tool.define.options('Q/columns', co);
 
 Q.onInit.set(function () {
+	// After scriptData has merged Communities.onboarding.serverOptions
+	// (steps, icon, …). Must not live under Streams/subscribed — that
+	// left the tool with steps:[] and threw on construct.
+	Q.Tool.define.options('Communities/onboarding',
+		Q.getObject(['onboarding', 'serverOptions'], Communities));
+
 	Users.login.options.onboardingUrl = Q.url('onboarding');
 	Streams.invite.options.addLabel = true;
 	Streams.invite.options.addMyLabel = true;
