@@ -32,13 +32,23 @@ function Communities_invite_post()
 	}
 	$publisherId = Streams::requestedPublisherId(true);
 	$streamName = Streams::requestedName(true);
+	$stream = Streams_Stream::fetch(null, $publisherId, $streamName, true);
 	$options = array_merge($_REQUEST, array(
 		'asUserId' => $communityId
 	));
 	Streams::$cache['invited'] = Streams::invite(
-		$publisherId, 
-		$streamName, 
-		$_REQUEST, 
+		$publisherId,
+		$streamName,
+		$_REQUEST,
 		$options
 	);
+
+	// Q.Streams.invite() asks for ["data", "stream"] whenever the invite dialog
+	// picked a send method (see Streams/web/js/methods/Streams/invite.js), and
+	// only for ["data"] otherwise. The "data" slot is filled by
+	// Communities_invite_response_data() from the cache set just above; there is
+	// no Communities/invite/response/stream handler, so fill that one here, the
+	// same way Streams_invite_post() does. Without it the send-by-email/SMS/QR
+	// path dies with a missing slot after the invite has already been created.
+	Q_Response::setSlot('stream', $stream->exportArray());
 }
