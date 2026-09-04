@@ -340,11 +340,14 @@ html.Communities_onboarding #columns_slot .Q_column_0 .column_slot {
     /*display: none;*/
 }
 
-
 html.Q_notMobile.Communities_onboarding .Communities_onboarding_step>*:first-child {
     position: relative;
     top: 50%;
     transform: translate(0, -50%);
+}
+
+html.Q_notMobile.Communities_onboarding .Q_dialog .Communities_onboarding_step>*:first-child {
+    transform: none;
 }
 
 html.Q_notMobile.Communities_onboarding .Communities_onboarding_step.Communities_onboarding_interests {
