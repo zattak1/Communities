@@ -944,16 +944,14 @@ input.Communities_filter_publishers_input::placeholder {
 .Places_location_tool div[data-location=address] label {
 	display: none;
 }
-html.Communities_dialog #page,
-html.Communities_dialog #dashboard_slot {
-	filter:blur(5px);
-	-o-filter:blur(5px);
-	-ms-filter:blur(5px);
-	-moz-filter:blur(5px);
-	-webkit-filter:blur(5px);
-	/*	transition: filter 0.1s;
-		-webkit-transition: -webkit-filter 0.1s;*/
-}
+/* The dialog blur used to be `filter: blur(5px)` on #page and #dashboard_slot
+   here (and the same rule under html.Q_dialog_shown in Q.css). Two defects came
+   out of that (ro#525): the blur only covered as much of the screen as those
+   two elements did, leaving the rest of a wide viewport sharp; and dropping the
+   filter on close repainted the fixed header, which read as the cards briefly
+   losing their borders, shadows and padding. Q.css now puts a backdrop-filter
+   on .Q_dialog_mask, which is sized to the viewport, so nothing is left over
+   for this plugin to do. */
 .Q_mobile #dashboard_user {
 	width: var(--dashboard-mobile-height);
 	height: var(--dashboard-mobile-height);
