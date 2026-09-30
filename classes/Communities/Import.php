@@ -405,6 +405,11 @@ class Communities_Import
 		if (Q::ifset($user, 'emailAddress', null)) {
 			return;
 		}
+		// Never take an address another user signs in with: $verified = true
+		// would reassign the row to this user (ro#942).
+		if (Users::identifierOwnedElsewhere('email', $emailAddress, $user->id)) {
+			return;
+		}
 
 		$user->setEmailAddress($emailAddress, true);
 	}
@@ -421,6 +426,9 @@ class Communities_Import
 
 		if (Q::ifset($user, 'mobileNumber', null)) {
 			return;
+		}
+		if (Users::identifierOwnedElsewhere('mobile', $mobileNumber, $user->id)) {
+			return; // see updateEmail (ro#942)
 		}
 
 		$user->setMobileNumber($mobileNumber, true);
@@ -708,6 +716,12 @@ class Communities_Import
 					))->ignoreCache()->fetchDbRows();
 				}
 
+				// Whether this row matched someone already in the system. Only a
+				// user this import creates may have identifiers set without
+				// proof; an existing one - matched by email, mobile or merely by
+				// name - gets an activation message instead, or an admin's CSV
+				// could give any namesake a sign-in address (ro#942).
+				$existingUser = (bool) $addedUsers;
 				if ($addedUsers) {
 					$userId = Q::ifset($addedUsers[0], 'id', Q::ifset($addedUsers[0], 'publisherId', null));
 
@@ -784,7 +798,7 @@ class Communities_Import
 
 				// update email
 				if (!empty($data['email_address'])) {
-					if ($activateUsers) {
+					if ($activateUsers or $existingUser) {
 						$user->addEmail($data['email_address']);
 					} else {
 						self::updateEmail($user, $data['email_address']);
@@ -793,7 +807,7 @@ class Communities_Import
 
 				// update mobile
 				if (!empty($data['mobile_number'])) {
-					if ($activateUsers) {
+					if ($activateUsers or $existingUser) {
 						$user->addMobile($data['mobile_number']);
 					} else {
 						self::updateMobile($user, $data['mobile_number']);
