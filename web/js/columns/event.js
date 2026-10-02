@@ -42,9 +42,11 @@ Q.exports(function (options, index, div, data) {
 		});
 		eventTool.state.onRefresh.set(function () {
 			var participants = eventTool.child('Streams_participants');
-			participants.state.onInvited.set(function (err) {
-				Communities.hints('invitedSomeone', [$column]);
-			});
+			if (participants) {
+				participants.state.onInvited.set(function (err) {
+					Communities.hints('invitedSomeone', [$column]);
+				});
+			}
 		}, 'Communities/event/column');
 		eventTool.state.onGoing.set(function (g, stream) {
 			if (g !== 'no') {
