@@ -282,10 +282,20 @@ abstract class Communities
 		// connection back) or any other failure undoes all of it. The charge
 		// comes last, so the payer's and receiver's balance locks are held
 		// only for the commit, and no balance lock is taken after them.
-		// One transaction needs one DSN: Users, Streams and Assets share it
-		// in our apps.
+		// One transaction needs one PDO -- same DSN, credentials and
+		// driver_options -- for Users, Streams and Assets, as in our apps:
+		// the nesting counter is kept per DSN, PDOs per all four, so on
+		// different PDOs the writes would silently autocommit. Refused then.
 		$paid = !$skipAccess && !($quota instanceof Users_Quota);
 		if ($paid) {
+			$pdo = Users_User::db()->reallyConnect();
+			if ($pdo !== Streams_Stream::db()->reallyConnect()
+			or (class_exists('Assets_Credits') and $pdo !== Assets_Credits::db()->reallyConnect())) {
+				throw new Q_Exception(
+					"Communities::create: the Users, Streams and Assets connections use different PDOs,"
+					. " so a paid community can't be made and charged in one transaction"
+				);
+			}
 			Users_User::begin(false)->execute();
 		}
 		try {
