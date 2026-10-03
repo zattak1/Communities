@@ -270,17 +270,63 @@ abstract class Communities
 			} else {
                 return $community;
             }
-		} else {
-			$community->url = Q_Config::expect('Q', 'web', 'appRootUrl');
-			$community->icon = "{{baseUrl}}/Q/plugins/Communities/img/icons/default";
-			$community->signedUpWith = 'none';
-			$community->username = Q::ifset($options, 'username', Q_Utils::normalize($communityName));
-            $xids = Q::ifset($options, 'xids', null);
-            if ($xids) {
-                $community->xids = is_string($xids) ? $xids : json_encode($xids);
-            }
-			$community->save();
 		}
+
+		// Past the quota, creating a community is paid for with credits, by
+		// Communities/after/Communities_community_create once everything
+		// exists. The balance was only pre-checked above, so a concurrent
+		// spend could make that charge fail after the community was made,
+		// leaving it made and unpaid (ro#1039). So the paid path runs in one
+		// transaction: the community, its streams and contacts, then the
+		// charge, committed together; a refused charge (spend() rolls the
+		// connection back) or any other failure undoes all of it. The charge
+		// comes last, so the payer's and receiver's balance locks are held
+		// only for the commit, and no balance lock is taken after them.
+		// One transaction needs one DSN: Users, Streams and Assets share it
+		// in our apps.
+		$paid = !$skipAccess && !($quota instanceof Users_Quota);
+		if ($paid) {
+			Users_User::begin(false)->execute();
+		}
+		try {
+			$community = self::createCommunityRows($community, $communityName, $userId, $skipAccess, $quota, $options);
+		} catch (Exception $e) {
+			if ($paid) {
+				try {
+					Users_User::rollback()->execute();
+				} catch (Exception $ignored) {
+					// a failed statement or spend() already rolled back
+				}
+			}
+			throw $e;
+		}
+		if ($paid) {
+			Users_User::commit()->execute();
+		}
+
+		return $community;
+	}
+
+	/**
+	 * The part of create() after the existence check: makes the community
+	 * and fires Communities/community/create {after}, which charges for it
+	 * when it was created past the quota.
+	 * @method createCommunityRows
+	 * @static
+	 * @private
+	 */
+	private static function createCommunityRows($community, $communityName, $userId, $skipAccess, $quota, $options)
+	{
+		$communityId = $community->id;
+		$community->url = Q_Config::expect('Q', 'web', 'appRootUrl');
+		$community->icon = "{{baseUrl}}/Q/plugins/Communities/img/icons/default";
+		$community->signedUpWith = 'none';
+		$community->username = Q::ifset($options, 'username', Q_Utils::normalize($communityName));
+		$xids = Q::ifset($options, 'xids', null);
+		if ($xids) {
+			$community->xids = is_string($xids) ? $xids : json_encode($xids);
+		}
+		$community->save();
 
 		$streams = self::prepareCommunity($communityId);
 

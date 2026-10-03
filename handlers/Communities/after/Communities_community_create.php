@@ -23,6 +23,9 @@ function Communities_after_Communities_community_create($params)
 	// spend() requires a receiver: without toPublisherId it threw
 	// RequiredField, so creating a community past the quota always failed
 	// after the community was made, and nothing was charged.
+	// Communities::create() runs this inside the transaction that made the
+	// community, so a refused spend() rolls the community back with it
+	// rather than leaving it made and unpaid (ro#1039).
 	Assets_Credits::spend(null, $amountToSpend, Assets::CREATED_COMMUNITY, $userId, array(
 		'toPublisherId' => Users::communityId(),
 		'communityId' => $community->id
