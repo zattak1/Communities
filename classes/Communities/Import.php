@@ -54,36 +54,6 @@ class Communities_Import
 		))->ignoreCache()->fetchDbRow()->remove();
 	}
 	/**
-	 * Update users icon from remote source by URL.
-	 * @method updateUserIcon
-	 * @static
-	 * @param {Users_User|string} $user
-	 * @param {string} $photoUrl URL or base64 encoded image data
-	 */
-	static function updateUserIcon($user, $data)
-	{
-		if (gettype($user) === 'string') {
-			$user = Users::fetch($user, true);
-		}
-
-		if (Q_Valid::url($data)) {
-			$data = file_get_contents($data);
-		}
-
-		// if icon is valid image
-		if (@imagecreatefromstring($data)) {
-			// upload image to stream
-			$subpath = Q_Utils::splitId($user->id, 3, '/')."/icon/".time();
-			Q_Image::postNewImage(array(
-				'data' => $data,
-				'path' => "Q/uploads/Users",
-				'subpath' => $subpath,
-				'save' => "Users/icon",
-				'skipAccess' => true
-			));
-		}
-	}
-	/**
 	 * Apply user to interests.
 	 * @method applyInterests
 	 * @static
