@@ -456,6 +456,24 @@ class Communities_Import
 	}
 
 	/**
+	 * Whether an image URL from an import (a CSV photo_url, cover_url or icon
+	 * cell, or an image-search result) may be imported: an absolute http or
+	 * https URL. Q_Valid::url() alone also accepts file:// and php://, which
+	 * would let a CSV cell name a file on this server (ro#1045). The URL is then
+	 * requested only through Q_Fetch, which also refuses private targets.
+	 * @method isPhotoUrl
+	 * @static
+	 * @param {mixed} $url
+	 * @return {boolean}
+	 */
+	static function isPhotoUrl($url)
+	{
+		return is_string($url)
+			&& preg_match('#^https?://#i', $url)
+			&& Q_Valid::url($url);
+	}
+
+	/**
 	 * Prepare icon for import to user
 	 *
 	 * @method prepareIcon
@@ -469,8 +487,17 @@ class Communities_Import
 		if (Q_Config::get('Communities', 'community', 'importUsers', 'image', 'removeBackground', false)) {
 			$filename = basename(parse_url($iconUrl, PHP_URL_PATH));
 			$savePath = implode(DS, [APP_FILES_DIR, Users::communityId(), "uploads", "Users", $filename]);
-			$iconData = file_get_contents($iconUrl);
 			try {
+				// A URL is fetched only through Q_Fetch (http/https, public
+				// targets, redirects re-checked), never a stream wrapper; a
+				// plain path comes only from server code (ro#1045).
+				if (preg_match('#^[a-z][a-z0-9+.-]*:#i', $iconUrl)) {
+					$response = Q_Fetch::get($iconUrl, array('maxBytes' => 5242880));
+					$iconData = ($response['status'] === 200 && !$response['truncated'])
+						? $response['body'] : false;
+				} else {
+					$iconData = is_file($iconUrl) ? file_get_contents($iconUrl) : false;
+				}
 				if (!$iconData) {
 					throw new Exception("Couldn't download file from ".$iconUrl);
 				}
@@ -741,7 +768,7 @@ class Communities_Import
 					$user = Streams::register(
 						$data['full_name'],
 						$identifier,
-						Q_Valid::url($data['photo_url']) && Q_Image::isRealImage($data['photo_url']) ? self::prepareIcon($data['photo_url']) : true,
+						self::isPhotoUrl($data['photo_url']) && Q_Image::isRealImage($data['photo_url']) ? self::prepareIcon($data['photo_url']) : true,
 						array(
 							'activation' => $activateUsers,
 							'skipIdentifier' => true
@@ -761,7 +788,7 @@ class Communities_Import
 
 				// update icon if not custom
 				if (!Users::isCustomIcon($user->icon)) {
-					if (Q_Valid::url($data['photo_url']) && Q_Image::isRealImage($data['photo_url'])) {
+					if (self::isPhotoUrl($data['photo_url']) && Q_Image::isRealImage($data['photo_url'])) {
 						self::importIcon($user, $data['photo_url']);
 					} elseif (!$user->get('leaveDefaultIcon', false)
 						and !$user->get('skipIconSearch', false)
@@ -774,7 +801,7 @@ class Communities_Import
 									);
 
 									foreach ($iconUrls as $iconUrl) {
-										if (!Q_Image::isRealImage($iconUrl)) {
+										if (!self::isPhotoUrl($iconUrl) || !Q_Image::isRealImage($iconUrl)) {
 											continue;
 										}
 
@@ -874,7 +901,7 @@ class Communities_Import
 				}
 
 				// apply cover image
-				$coverIcon = Q_Valid::url($data['cover_url'])
+				$coverIcon = self::isPhotoUrl($data['cover_url'])
 					? Q_Image::iconArrayWithUrl($data['cover_url'], 'Users/cover')
 					: null;
 				if ($coverIcon) {
@@ -1065,7 +1092,7 @@ class Communities_Import
 				}
 
 				// import icon
-				if (Q_Valid::url($data['icon'])) {
+				if (self::isPhotoUrl($data['icon'])) {
 					$icon = Q_Image::iconArrayWithUrl($data['icon'], 'Users/icon');
 					Users::importIcon($user, $icon);
 					$user->save();
