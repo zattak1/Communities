@@ -296,6 +296,13 @@ abstract class Communities
 					. " so a paid community can't be made and charged in one transaction"
 				);
 			}
+			// Make both balance streams before the transaction, as spend()
+			// means to: created inside it, a rollback would undo them while
+			// Assets_Credits' caches still had them.
+			if (class_exists('Assets_Credits')) {
+				Assets_Credits::stream(null, $userId, Users::communityId());
+				Assets_Credits::stream(null, Users::communityId(), Users::communityId(), true);
+			}
 			Users_User::begin(false)->execute();
 		}
 		try {
