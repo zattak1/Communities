@@ -3,30 +3,43 @@
 function Communities_profile_summary_tool($params)
 {
 	Q_Valid::requireFields(array('publisherId'), $params);
+	// The viewer is always the logged-in user. A tool option is not a trusted
+	// source for the identity to read as: an "asUserId" option here let the
+	// caller choose whose access the reads below were evaluated with.
 	$user = Users::loggedInUser();
-	$asUserId = Q::ifset($params, 'asUserId', $user ? $user->id : '');
+	$asUserId = $user ? $user->id : '';
 	$publisherId = $params['publisherId'];
-	$birthdayStream = Streams_Stream::fetch($asUserId, $publisherId, 'Streams/date/birthday');
-	$genderStream = Streams_Stream::fetch($asUserId, $publisherId, 'Streams/user/gender');
-	$heightStream = Streams_Stream::fetch($asUserId, $publisherId, 'Streams/user/height');
-	$locationStream = Streams_Stream::fetch($asUserId, $publisherId, 'Places/user/location');
-	$userLocationStream = Streams_Stream::fetch($asUserId, $asUserId, 'Places/user/location');
+	// Streams_Stream::fetch() returns a stream whatever its readLevel, content
+	// and attributes included; only testReadLevel() applies the readLevel.
+	// Without these checks the tool rendered another person's birthday,
+	// gender, height, links and location to anyone, logged out included.
+	$readable = function ($stream, $level = 'content') {
+		return ($stream and $stream->testReadLevel($level)) ? $stream : null;
+	};
+	$birthdayStream = $readable(Streams_Stream::fetch($asUserId, $publisherId, 'Streams/date/birthday'));
+	$genderStream = $readable(Streams_Stream::fetch($asUserId, $publisherId, 'Streams/user/gender'));
+	$heightStream = $readable(Streams_Stream::fetch($asUserId, $publisherId, 'Streams/user/height'));
+	// Coordinates are attributes, which need 'fields', not just 'content'.
+	$locationStream = $readable(Streams_Stream::fetch($asUserId, $publisherId, 'Places/user/location'), 'fields');
+	$userLocationStream = $asUserId
+		? Streams_Stream::fetch($asUserId, $asUserId, 'Places/user/location')
+		: null;
 
 	// return "24 year old man, 6'3";
 	$parts = array();
 	$result = "";
 
-	$fbStream = Streams_Stream::fetch($asUserId, $publisherId, 'Streams/url/facebook');
+	$fbStream = $readable(Streams_Stream::fetch($asUserId, $publisherId, 'Streams/url/facebook'));
 	if ($fbStream && !empty($fbStream->content)) {
 		$result .= '<a target="_blank" href="'.$fbStream->content.'" class="Communities_summary_social" data-type="facebook"></a>';
 	}
 
-	$twitterStream = Streams_Stream::fetch($asUserId, $publisherId, 'Streams/url/twitter');
+	$twitterStream = $readable(Streams_Stream::fetch($asUserId, $publisherId, 'Streams/url/twitter'));
 	if ($twitterStream && !empty($twitterStream->content)) {
 		$result .= '<a target="_blank" href="'.$twitterStream->content.'" class="Communities_summary_social" data-type="twitter"></a>';
 	}
 
-	$linkedinStream = Streams_Stream::fetch($asUserId, $publisherId, 'Streams/url/linkedin');
+	$linkedinStream = $readable(Streams_Stream::fetch($asUserId, $publisherId, 'Streams/url/linkedin'));
 	if ($linkedinStream && !empty($linkedinStream->content)) {
 		$result .= '<a target="_blank" href="'.$linkedinStream->content.'" class="Communities_summary_social" data-type="linkedin"></a>';
 	}
