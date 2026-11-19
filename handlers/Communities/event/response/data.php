@@ -22,8 +22,21 @@ function Communities_event_response_data($params) {
 			$columnClass[] = 'Communities_event_relatedParticipants';
 		}
 
-        $going = Calendars_Event::getGoing($stream);
-		if ($going !== 'no') {
+		// A paid class the member asked for but hasn't paid for is going=maybe
+		// with role "requested". Showing it as reserved left only "Cancel
+		// Reservation" on screen, so a member whose payment didn't finish the
+		// booking believed they were booked (ro#1245). Show "Make Reservation"
+		// instead: it re-runs going=yes, which spends credits or asks to pay.
+		// Upstream Qbix/Communities 7514faf splits this into its own
+		// "requested" state with separate buttons.
+		$results = Calendars_Event::getGoing($stream, null, true);
+		$going = $results['going'];
+		$eventPayment = $stream->getAttribute('payment');
+		$paymentPending = $going === 'maybe'
+			&& is_array($eventPayment) && Q::ifset($eventPayment, 'type', null) === 'required'
+			&& !($results['participant']
+				&& $results['participant']->getExtra('paid') === 'fully');
+		if ($going !== 'no' && !$paymentPending) {
 			$columnClass[] = 'Communities_event_reserved';
 		}
 	}

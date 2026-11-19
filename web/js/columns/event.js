@@ -48,8 +48,18 @@ Q.exports(function (options, index, div, data) {
 				});
 			}
 		}, 'Communities/event/column');
-		eventTool.state.onGoing.set(function (g, stream) {
-			if (g !== 'no') {
+		eventTool.state.onGoing.set(function (g, stream, participant) {
+			// Same rule as Communities/event/response/data.php (ro#1245): an
+			// unpaid request for a paid event is not a reservation, so keep
+			// "Make Reservation" on screen rather than "Cancel Reservation".
+			var payment = stream && stream.getAttribute && stream.getAttribute('payment');
+			var paymentPending = g === 'maybe'
+				&& Q.getObject('type', payment) === 'required'
+				&& !(participant && participant.getExtra
+					&& participant.getExtra('paid') === 'fully');
+			if (paymentPending) {
+				$column.removeClass('Communities_event_reserved');
+			} else if (g !== 'no') {
 				// Calendars.Event.addToCalendar(publisherId, eventId);
 				Communities.hints('goingYes', [$column]);
 				$column.addClass('Communities_event_reserved');
